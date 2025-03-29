@@ -11,12 +11,20 @@ git clone -b initial_version https://github.com/michal-miko/arch-bootstrap.git /
 git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
+# Define a local repository for paru and the local meta packages
+cat <<EOF >> /etc/pacman.conf
+[local]
+SigLevel = Optional TrustAll
+Server = file:///tmp/local-repo
+EOF
+mkdir -p /tmp/local-repo
+
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
 read -rp "Username: " username
 read -srp "Password: " password
 packages="mm-arch-base mm-arch-k8s mm-arch-kde"
-chosen_pkg_name=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
+chosen_meta_pkg=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
 swap_size=8192
 swap_end=$((1024 + swap_size))
 
@@ -40,16 +48,22 @@ timedatectl set-ntp true
 # Add a build user
 useradd -Um build
 
-# Prepare the meta-package
+# Prepare the meta packages
 cd /tmp/arch-bootstrap/pkg/mm-arch
 chown -R build:build .
 su build -c "makepkg -s"
+mv /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst /tmp/local-repo
 
-# Perepare the paru package
+# Perepare the paru packages
 cd /tmp/paru
 chown -R build:build .
 su build -c "rustup default stable"
 su build -c "makepkg -s"
+mv /tmp/paru/*.pkg.tar.zst /tmp/local-repo
+
+# Update the local repository and sync the databases
+repo-add /tmp/local-repo/local-repo.db.tar.gz /tmp/local-repo/*.pkg.tar.zst
+pacman -Sy
 
 # Partitions
 parted --script "${drive}" -- mklabel gpt \
@@ -76,16 +90,8 @@ mount "${root_part}" /mnt
 mount --mkdir "${boot_part}" /mnt/boot
 swapon "${swap_part}"
 
-# Install the chosen meta-package
-chosen_pkg=$(ls /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst | grep -E "/${chosen_pkg_name}-[0-9]")
-paru_pkg=$(ls /tmp/paru/*.pkg.tar.zst | grep -E "/paru-[0-9]")
-chroot_base_pkg="/mnt/tmp/$(basename "${chosen_pkg}")"
-chroot_paru_pkg="/mnt/tmp/$(basename "${paru_pkg}")"
-mv "${chosen_pkg}" "${chroot_base_pkg}"
-mv "${paru_pkg}" "${chroot_paru_pkg}"
-pacstrap /mnt base
-arch-chroot /mnt pacman -U --noconfirm "${chroot_base_pkg}"
-arch-chroot /mnt pacman -U --noconfirm "${chroot_paru_pkg}"
+# Install the chosen meta-package and paru
+pacstrap /mnt "${chosen_meta_pkg}" paru
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
