@@ -104,3 +104,9 @@ linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options root=PARTUUID=$(blkid -s PARTUUID -o value "${root_part}") rw
 EOF
+
+# Enable services
+mkdir -pm /mnt/etc/systemd/system/multi-user.target.wants
+arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
+arch-chroot /mnt ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
