@@ -1,0 +1,103 @@
+pkgbase=mm-arch
+pkgname=('mm-arch-base' 'mm-arch-k8s' 'mm-arch-kde' 'mm-arch-kde-aur')
+pkgver=1.0
+pkgrel=1
+pkgdesc="Personal meta-packages for my Arch Linux machines"
+arch=('any')
+url="https://github.com/michal-miko/arch-bootstrap"
+license=('MIT')
+
+source=(
+  skel-tealdeer-config.toml
+  sshd_config.d-80-mm-arch.conf
+  sudoers.d-wheel
+  pacman.conf
+)
+
+md5sums=(
+  'd9506ba4deb4d2c1cc95a3fb9ecb7f66'
+  '8d27da6c8ea6dea329f1feb0b3d1fc06'
+  '00028eec5052c1dadb6ba0dacc962d2f'
+  '21a934d8a8c66b4fd3219fe3d36fc183'
+)
+
+package_mm-arch-base() {
+  install='mm-arch-base.install'
+
+  depends=(
+    base base-devel linux linux-firmware
+  )
+
+  # general
+  depends+=(
+    amd-ucode bat bottom detox efibootmgr fdupes ffmpeg fzf go-yq
+    htop intel-ucode jq libdeflate libqalculate reflector sshfs sudo
+    the_silver_searcher unzip zip zlib
+  )
+
+  # network
+  depends+=(
+    bind curl iperf3 iwd nmap openbsd-netcat openssh tcpdump wget whois
+    wireguard-tools
+  )
+
+  # docs
+  depends+=(
+    man-db man-pages tealdeer
+  )
+
+  # dev
+  depends+=(
+    git python python-pip rustup
+  )
+
+  # shell
+  depends+=(
+    fish starship
+  )
+
+  # neovim and providers
+  depends+=(
+    luarocks neovim python-pynvim ripgrep yarn
+  )
+
+  install -Dm 644 skel-tealdeer-config.toml "$pkgdir"/etc/skel/.config/tealdeer/config.toml
+  install -Dm 644 sshd_config.d-80-mm-arch.conf "$pkgdir"/etc/ssh/sshd_config.d/80-mm-arch.conf
+  install -Dm 700 pacman.conf "$pkgdir"/etc/mm-arch-pacman.conf
+  install -Dm 700 sudoers.d-wheel "$pkgdir"/etc/sudoers.d/wheel
+}
+
+package_mm-arch-k8s() {
+  depends=(
+    mm-arch-base
+  )
+
+  # docker & kubernetes
+  depends+=(
+    docker docker-compose helm helmfile krew kubectl
+  )
+}
+
+package_mm-arch-kde() {
+  depends=(
+    mm-arch-base
+  )
+
+  # GUI
+  depends+=(
+    dolphin filelight firefox flameshot gimp imagemagick krita mpv
+    neovide plasma-meta sddm sddm-kcm shotwell ttf-firacode-nerd
+    tumbler 
+  )
+}
+
+package_mm-arch-kde-aur() {
+  depends=(
+    mm-arch-kde
+  )
+
+  # AUR
+  depends+=(
+    bruno-bin spotify ventoy-bin wireguird
+  )
+}
