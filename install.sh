@@ -5,9 +5,9 @@ set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 mount -o remount,size=4G /run/archiso/cowspace
-pacman -Syy git --noconfirm
+pacman -Syy base-devel rustup git fzf --noconfirm
 
-git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
+git clone -b initial_version https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
 git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
@@ -15,6 +15,8 @@ cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 read -rp "Hostname: " hostname
 read -rp "Username: " username
 read -srp "Password: " password
+packages="mm-arch-base mm-arch-k8s mm-arch-kde"
+chosen_pkg_name=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
 swap_size=8192
 swap_end=$((1024 + swap_size))
 
@@ -35,9 +37,6 @@ exec 2> >(tee -a stderr.log)
 
 timedatectl set-ntp true
 
-# Install the rest of the dependencies
-pacman -Syy base-devel rustup fzf --noconfirm
-
 # Add a build user
 useradd -Um build
 
@@ -56,8 +55,8 @@ su build -c "makepkg -s"
 parted --script "${drive}" -- mklabel gpt \
   mkpart ESP fat32 1MiB 1024MiB \
   set 1 esp on \
-  mkpart Swap linux-swap 1024MiB "${swap_end}MiB" \
-  mkpart Root ext4 "${swap_end}MiB" 100% \
+  mkpart swap linux-swap 1024MiB "${swap_end}MiB" \
+  mkpart root ext4 "${swap_end}MiB" 100% \
   print
 
 boot_part="$(ls "${drive}"* | grep -E "^${drive}p?1$")"
@@ -78,10 +77,8 @@ mount --mkdir "${boot_part}" /mnt/boot
 swapon "${swap_part}"
 
 # Install the chosen meta-package
-packages=("mm-arch-base" "mm-arch-k8s" "mm-arch-kde")
-chosen_pkg_name=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
-chosen_pkg=$(ls /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst | grep -E "^${chosen_pkg_name}-[0-9]")
-paru_pkg=$(ls /tmp/paru/*.pkg.tar.zst | grep -E "^paru-[0-9]")
+chosen_pkg=$(ls /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst | grep -E "/${chosen_pkg_name}-[0-9]")
+paru_pkg=$(ls /tmp/paru/*.pkg.tar.zst | grep -E "/paru-[0-9]")
 pacstrap /mnt "${chosen_pkg}" paru
 
 # Generate fstab
