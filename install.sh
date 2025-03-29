@@ -79,7 +79,13 @@ swapon "${swap_part}"
 # Install the chosen meta-package
 chosen_pkg=$(ls /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst | grep -E "/${chosen_pkg_name}-[0-9]")
 paru_pkg=$(ls /tmp/paru/*.pkg.tar.zst | grep -E "/paru-[0-9]")
-pacstrap -U /mnt "${chosen_pkg}" "${paru_pkg}"
+chroot_base_pkg="/mnt/tmp/$(basename "${chosen_pkg}")"
+chroot_paru_pkg="/mnt/tmp/$(basename "${paru_pkg}")"
+mv "${chosen_pkg}" "${chroot_base_pkg}"
+mv "${paru_pkg}" "${chroot_paru_pkg}"
+pacstrap /mnt base
+arch-chroot /mnt pacman -U --noconfirm "${chroot_base_pkg}"
+arch-chroot /mnt pacman -U --noconfirm "${chroot_paru_pkg}"
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
