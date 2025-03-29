@@ -18,7 +18,7 @@ md5sums=(
   'd9506ba4deb4d2c1cc95a3fb9ecb7f66'
   '8d27da6c8ea6dea329f1feb0b3d1fc06'
   '00028eec5052c1dadb6ba0dacc962d2f'
-  '21a934d8a8c66b4fd3219fe3d36fc183'
+  '8f80b627ca8fc362b3fb0ea8caaed4bd'
 )
 
 package_mm-arch-base() {
