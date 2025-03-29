@@ -11,8 +11,6 @@ git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
 git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
-pacman -Su base-devel rustup fzf --noconfirm
-
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
 read -rp "Username: " username
@@ -36,6 +34,9 @@ exec 1> >(tee -a stdout.log)
 exec 2> >(tee -a stderr.log)
 
 timedatectl set-ntp true
+
+# Install the rest of the dependencies
+pacman -Syy base-devel rustup fzf --noconfirm
 
 # Add a build user
 useradd -Um build
