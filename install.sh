@@ -18,6 +18,7 @@ SigLevel = Optional TrustAll
 Server = file:///tmp/local-repo
 EOF
 mkdir -p /tmp/local-repo
+repo-add /tmp/local-repo/local-repo.db.tar.gz
 
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
@@ -52,18 +53,16 @@ useradd -Um build
 cd /tmp/arch-bootstrap/pkg/mm-arch
 chown -R build:build .
 su build -c "makepkg -s"
-mv /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst /tmp/local-repo
+chown root:root ./*.pkg.tar.zst
+repo-add /tmp/local-repo/local-repo.db.tar.gz ./*.pkg.tar.zst
 
 # Perepare the paru packages
 cd /tmp/paru
 chown -R build:build .
 su build -c "rustup default stable"
 su build -c "makepkg -s"
-mv /tmp/paru/*.pkg.tar.zst /tmp/local-repo
-
-# Update the local repository and sync the databases
-repo-add /tmp/local-repo/local-repo.db.tar.gz /tmp/local-repo/*.pkg.tar.zst
-pacman -Sy
+chown root:root ./*.pkg.tar.zst
+repo-add /tmp/local-repo/local-repo.db.tar.gz ./*.pkg.tar.zst
 
 # Partitions
 parted --script "${drive}" -- mklabel gpt \
@@ -91,6 +90,7 @@ mount --mkdir "${boot_part}" /mnt/boot
 swapon "${swap_part}"
 
 # Install the chosen meta-package and paru
+pacman -Sy
 pacstrap /mnt "${chosen_meta_pkg}" paru
 
 # Generate fstab
