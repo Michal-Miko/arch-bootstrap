@@ -13,12 +13,12 @@ cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
 # Define a local repository for paru and the local meta packages
 cat <<EOF >> /etc/pacman.conf
-[local]
+[tmplocal]
 SigLevel = Optional TrustAll
 Server = file:///tmp/local-repo
 EOF
 mkdir -p /tmp/local-repo
-repo-add /tmp/local-repo/local-repo.db.tar.gz
+repo-add /tmp/local-repo/tmplocal.db.tar.gz
 
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
@@ -54,7 +54,7 @@ cd /tmp/arch-bootstrap/pkg/mm-arch
 chown -R build:build .
 su build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
-repo-add /tmp/local-repo/local-repo.db.tar.gz ./*.pkg.tar.zst
+repo-add /tmp/local-repo/tmplocal.db.tar.gz ./*.pkg.tar.zst
 
 # Perepare the paru packages
 cd /tmp/paru
@@ -62,7 +62,7 @@ chown -R build:build .
 su build -c "rustup default stable"
 su build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
-repo-add /tmp/local-repo/local-repo.db.tar.gz ./*.pkg.tar.zst
+repo-add /tmp/local-repo/tmplocal.db.tar.gz ./*.pkg.tar.zst
 
 # Partitions
 parted --script "${drive}" -- mklabel gpt \
