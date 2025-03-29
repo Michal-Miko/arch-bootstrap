@@ -54,7 +54,7 @@ cd /tmp/arch-bootstrap/pkg/mm-arch
 chown -R build:build .
 su build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
-repo-add /tmp/local-repo/tmplocal.db.tar.gz ./*.pkg.tar.zst
+mv ./*.pkg.tar.zst /tmp/local-repo
 
 # Perepare the paru packages
 cd /tmp/paru
@@ -62,7 +62,10 @@ chown -R build:build .
 su build -c "rustup default stable"
 su build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
-repo-add /tmp/local-repo/tmplocal.db.tar.gz ./*.pkg.tar.zst
+mv ./*.pkg.tar.zst /tmp/local-repo
+
+# Update the local repository
+repo-add /tmp/local-repo/tmplocal.db.tar.gz /tmp/local-repo/*.pkg.tar.zst
 
 # Partitions
 parted --script "${drive}" -- mklabel gpt \
