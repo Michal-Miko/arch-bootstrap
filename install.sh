@@ -4,6 +4,9 @@
 set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
+git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
+cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
+
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
 read -rp "Username: " username
@@ -53,4 +56,51 @@ mount "${root_part}" /mnt
 mount --mkdir "${boot_part}" /mnt/boot
 swapon "${swap_part}"
 
+# Prepare the meta-package
+cd /tmp/arch-bootstrap/pkg/mm-arch
+makepkg -s
+mkdir -p /mnt/var/cache/pacman/pkg
+cp /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst /mnt/var/cache/pacman/pkg/
 
+# Install the chosen meta-package
+packages=("mm-arch-base" "mm-arch-k8s" "mm-arch-kde" "mm-arch-kde-aur")
+chosen_pkg=$(echo "${packages[@]}" | fzf --height 10 --prompt "Chose the base package: ")
+pacstrap /mnt "${chosen_pkg}"
+
+# Generate fstab
+genfstab -U /mnt >> /mnt/etc/fstab
+
+
+# Configure the system
+arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
+arch-chroot /mnt hwclock --systohc
+arch-chroot /mnt sed -i 's/#\(en_US\.UTF-8\)/\1/' /etc/locale.gen
+arch-chroot /mnt locale-gen
+arch-chroot /mnt echo "LANG=en_US.UTF-8" > /etc/locale.conf
+arch-chroot /mnt echo "KEYMAP=pl" > /etc/vconsole.conf
+arch-chroot /mnt echo "${hostname}" > /mnt/etc/hostname
+arch-chroot /mnt useradd -mU -s /usr/bin/fish -G wheel "${username}"
+arch-chroot /mnt chsh -s /usr/bin/fish
+echo "${username}:${password}" | chpasswd --root /mnt
+echo "root:${password}" | chpasswd --root /mnt
+
+# Configure the bootloader
+arch-chroot /mnt bootctl install
+cat <<EOF > /mnt/boot/loader/loader.conf
+default arch
+timeout 3
+EOF
+
+cat <<EOF > /mnt/boot/loader/entries/arch.conf
+title Arch Linux
+linux /vmlinuz-linux
+initrd /initramfs-linux.img
+options root=PARTUUID=$(blkid -s PARTUUID -o value "${root_part}") rw
+EOF
+
+cat <<EOF > /mnt/boot/loader/entries/arch-fallback.conf
+title Arch Linux Fallback
+linux /vmlinuz-linux
+initrd /initramfs-linux.img
+options root=PARTUUID=$(blkid -s PARTUUID -o value "${root_part}") rw
+EOF

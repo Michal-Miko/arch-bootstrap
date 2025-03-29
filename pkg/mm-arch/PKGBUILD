@@ -10,6 +10,8 @@ license=('MIT')
 source=(
   skel-tealdeer-config.toml
   sshd_config.d-80-mm-arch.conf
+  systemd-network-20-wired-dhcp.network
+  systemd-network-20-wireless-dhcp.network
   sudoers.d-wheel
   pacman.conf
 )
@@ -17,6 +19,8 @@ source=(
 md5sums=(
   'd9506ba4deb4d2c1cc95a3fb9ecb7f66'
   '8d27da6c8ea6dea329f1feb0b3d1fc06'
+  'c328c385c7f0ef975162d83ca5652ef7'
+  '16452ebd304dc3789ab5b0b9b66ee080'
   '00028eec5052c1dadb6ba0dacc962d2f'
   '8f80b627ca8fc362b3fb0ea8caaed4bd'
 )
@@ -63,6 +67,8 @@ package_mm-arch-base() {
 
   install -Dm 644 skel-tealdeer-config.toml "$pkgdir"/etc/skel/.config/tealdeer/config.toml
   install -Dm 644 sshd_config.d-80-mm-arch.conf "$pkgdir"/etc/ssh/sshd_config.d/80-mm-arch.conf
+  install -Dm 644 systemd-network-20-wired-dhcp.network "$pkgdir"/etc/systemd/network/20-wired-dhcp.network
+  install -Dm 644 systemd-network-20-wireless-dhcp.network "$pkgdir"/etc/systemd/network/20-wireless-dhcp.network
   install -Dm 700 pacman.conf "$pkgdir"/etc/mm-arch-pacman.conf
   install -Dm 700 sudoers.d-wheel "$pkgdir"/etc/sudoers.d/wheel
 }

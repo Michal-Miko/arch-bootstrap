@@ -9,15 +9,4 @@ post_upgrade() {
 
   echo "[mm-arch] Installing neovim node dependencies"
   yarn global add neovim
-
-  echo "[mm-arch] Updating system time and locale"
-  ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
-  echo "LANG=en_US.UTF-8" > /etc/locale.conf
-  sed -i 's/#\(en_US\.UTF-8\)/\1/' /etc/locale.gen
-  locale-gen
-
-  echo "[mm-arch] Enabling services"
-  systemctl enable --now systemd-networkd
-  systemctl enable --now systemd-resolved
-  systemctl enable --now sshd
 }
