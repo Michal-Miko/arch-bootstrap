@@ -5,7 +5,11 @@ set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
+git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
+
+pacman -S base-devel rustup --noconfirm
+rustup default stable
 
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
@@ -62,14 +66,18 @@ makepkg -s
 mkdir -p /mnt/var/cache/pacman/pkg
 cp /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst /mnt/var/cache/pacman/pkg/
 
+# Perepare the paru package
+cd /tmp/paru
+makepkg -s
+cp /tmp/paru/*.pkg.tar.zst /mnt/var/cache/pacman/pkg/
+
 # Install the chosen meta-package
-packages=("mm-arch-base" "mm-arch-k8s" "mm-arch-kde" "mm-arch-kde-aur")
+packages=("mm-arch-base" "mm-arch-k8s" "mm-arch-kde")
 chosen_pkg=$(echo "${packages[@]}" | fzf --height 10 --prompt "Chose the base package: ")
-pacstrap /mnt "${chosen_pkg}"
+pacstrap /mnt "${chosen_pkg}" paru
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
-
 
 # Configure the system
 arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
@@ -110,3 +118,6 @@ mkdir -pm /mnt/etc/systemd/system/multi-user.target.wants
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
+
+# Set the default rust toolchain
+arch-chroot /mnt rustup default stable
