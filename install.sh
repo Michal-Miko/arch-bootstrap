@@ -4,13 +4,15 @@
 set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-pacman -Syy base-devel git rustup --noconfirm
-rustup default stable
+mount -o remount,size=2G /run/archiso/cowspace
+pacman -Syy git --noconfirm
 
 git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
 git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
+pacman -Su base-devel rustup --noconfirm
+rustup default stable
 
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
