@@ -4,15 +4,14 @@
 set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-mount -o remount,size=2G /run/archiso/cowspace
+mount -o remount,size=4G /run/archiso/cowspace
 pacman -Syy git --noconfirm
 
 git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
 git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
-pacman -Su base-devel rustup --noconfirm
-rustup default stable
+pacman -Su base-devel rustup fzf --noconfirm
 
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
@@ -38,12 +37,26 @@ exec 2> >(tee -a stderr.log)
 
 timedatectl set-ntp true
 
+# Add a build user
+useradd -Um build
+
+# Prepare the meta-package
+cd /tmp/arch-bootstrap/pkg/mm-arch
+chown -R build:build .
+su build -c "makepkg -s"
+
+# Perepare the paru package
+cd /tmp/paru
+chown -R build:build .
+su build -c "rustup default stable"
+su build -c "makepkg -s"
+
 # Partitions
 parted --script "${drive}" -- mklabel gpt \
-  mkpart primary ESP fat32 1MiB 1024MiB \
+  mkpart ESP fat32 1MiB 1024MiB \
   set 1 esp on \
-  mkpart primary linux-swap 1024MiB "${swap_end}MiB" \
-  mkpart primary ext4 "${swap_end}MiB" 100% \
+  mkpart Swap linux-swap 1024MiB "${swap_end}MiB" \
+  mkpart Root ext4 "${swap_end}MiB" 100% \
   print
 
 boot_part="$(ls "${drive}"* | grep -E "^${drive}p?1$")"
@@ -63,20 +76,11 @@ mount "${root_part}" /mnt
 mount --mkdir "${boot_part}" /mnt/boot
 swapon "${swap_part}"
 
-# Prepare the meta-package
-cd /tmp/arch-bootstrap/pkg/mm-arch
-makepkg -s
-mkdir -p /mnt/var/cache/pacman/pkg
-cp /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst /mnt/var/cache/pacman/pkg/
-
-# Perepare the paru package
-cd /tmp/paru
-makepkg -s
-cp /tmp/paru/*.pkg.tar.zst /mnt/var/cache/pacman/pkg/
-
 # Install the chosen meta-package
 packages=("mm-arch-base" "mm-arch-k8s" "mm-arch-kde")
-chosen_pkg=$(echo "${packages[@]}" | fzf --height 10 --prompt "Chose the base package: ")
+chosen_pkg_name=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
+chosen_pkg=$(ls /tmp/arch-bootstrap/pkg/mm-arch/*.pkg.tar.zst | grep -E "^${chosen_pkg_name}-[0-9]")
+paru_pkg=$(ls /tmp/paru/*.pkg.tar.zst | grep -E "^paru-[0-9]")
 pacstrap /mnt "${chosen_pkg}" paru
 
 # Generate fstab
