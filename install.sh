@@ -28,7 +28,7 @@ read -srp "Password: " password
 packages="mm-arch-base mm-arch-k8s mm-arch-kde"
 chosen_meta_pkg=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
 swap_size=8192
-swap_end=$((1024 + swap_size))
+swap_end=$((1025 + swap_size))
 
 # Select the installation drive
 lsblk
@@ -70,9 +70,9 @@ repo-add /tmp/local-repo/tmplocal.db.tar.gz /tmp/local-repo/*.pkg.tar.zst
 
 # Partitions
 parted --script "${drive}" -- mklabel gpt \
-  mkpart ESP fat32 1MiB 1024MiB \
+  mkpart ESP fat32 1MiB 1025MiB \
   set 1 esp on \
-  mkpart swap linux-swap 1024MiB "${swap_end}MiB" \
+  mkpart swap linux-swap 1025MiB "${swap_end}MiB" \
   mkpart root ext4 "${swap_end}MiB" 100% \
   print
 
