@@ -9,7 +9,7 @@ pacman-key --init
 pacman-key --populate
 pacman -Syy base-devel rustup git fzf --noconfirm
 
-git clone -b initial_version https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
+git clone https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
 git clone https://aur.archlinux.org/paru.git /tmp/paru
 cp /tmp/arch-bootstrap/pkg/mm-arch/pacman.conf /etc/pacman.conf
 
