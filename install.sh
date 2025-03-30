@@ -30,7 +30,7 @@ chosen_meta_pkg=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the 
 swap_size=8192
 swap_end=$((1024 + swap_size))
 
-# Select the installation drive with fzf
+# Select the installation drive
 lsblk
 drive_list=$(lsblk -dlnpx size -o name,size | grep -vE "boot|rpmb|loop")
 drive=$(echo "${drive_list[@]}" | fzf --height 10 --prompt "Drive: " --layout reverse | awk '{print $1}')
@@ -48,9 +48,6 @@ exec 2> >(tee -a stderr.log)
 timedatectl set-ntp true
 
 # Add a build user
-if id "build" &>/dev/null; then
-  userdel -r mm-arch-build
-fi
 useradd -Um mm-arch-build
 
 # Prepare the meta packages
@@ -96,14 +93,12 @@ mount "${root_part}" /mnt
 mount --mkdir "${boot_part}" /mnt/boot
 swapon "${swap_part}"
 
-# Install the chosen meta-package and paru
+# Install the chosen meta package and paru
 pacman -Sy
 pacstrap /mnt "${chosen_meta_pkg}" paru
 
-# Generate fstab
-genfstab -U /mnt >> /mnt/etc/fstab
-
 # Configure the system
+genfstab -U /mnt >> /mnt/etc/fstab
 arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
 arch-chroot /mnt hwclock --systohc
 arch-chroot /mnt sed -i 's/#\(en_US\.UTF-8\)/\1/' /etc/locale.gen
@@ -119,19 +114,21 @@ echo "root:${password}" | chpasswd --root /mnt
 # Configure the bootloader
 arch-chroot /mnt bootctl install
 cat <<EOF > /mnt/boot/loader/loader.conf
-default arch
 timeout 3
+console-mode max
+editor no
+default arch
 EOF
 
 cat <<EOF > /mnt/boot/loader/entries/arch.conf
 title Arch Linux
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
-options root=PARTUUID=$(blkid -s PARTUUID -o value "${root_part}") rw
+options root=LABEL=ARCH_ROOT rw
 EOF
 
 cat <<EOF > /mnt/boot/loader/entries/arch-fallback.conf
-title Arch Linux Fallback
+title Arch Linux (fallback initramfs)
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options root=LABEL=ARCH_ROOT rw
@@ -143,12 +140,11 @@ arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-networkd.service /etc/sy
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
 
-# Set the default rust toolchain
-arch-chroot /mnt rustup default stable
-
 # Cleanup
 rm -rf /tmp/arch-bootstrap
 rm -rf /tmp/paru
 userdel -r mm-arch-build
 umount /mnt/boot /mnt
 swapoff "${swap_part}"
+
+echo "Installation complete. Reboot without the installation media."
