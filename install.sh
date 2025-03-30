@@ -4,6 +4,9 @@
 set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
+BUILD_USER=mm-arch-build
+BASE_PACKAGES="mm-arch-base mm-arch-k8s mm-arch-kde"
+
 mount -o remount,size=4G /run/archiso/cowspace
 pacman-key --init
 pacman-key --populate
@@ -25,8 +28,7 @@ mkdir -p /tmp/local-repo
 read -rp "Hostname: " hostname
 read -rp "Username: " username
 read -srp "Password: " password
-packages="mm-arch-base mm-arch-k8s mm-arch-kde"
-chosen_meta_pkg=$(printf "%s\n" $packages | fzf --height 10 --prompt "Chose the base package: ")
+chosen_meta_pkg=$(printf "%s\n" $BASE_PACKAGES | fzf --height 10 --prompt "Choose the base package: ")
 swap_size=8192
 swap_end=$((1025 + swap_size))
 
@@ -35,33 +37,29 @@ lsblk
 drive_list=$(lsblk -dlnpx size -o name,size | grep -vE "boot|rpmb|loop")
 drive=$(echo "${drive_list[@]}" | fzf --height 10 --prompt "Drive: " --layout reverse | awk '{print $1}')
 
-if [[ -z "$drive" ]]; then
-  echo "No drive selected. Exiting..."
+if [[ -z "$drive" || -z "$chosen_meta_pkg" || -z "$hostname" || -z "$username" ]]; then
+  echo "Invalid configuration. Exiting..."
   exit 1
 fi
-
-echo "Selected drive: $drive"
 
 exec 1> >(tee -a stdout.log)
 exec 2> >(tee -a stderr.log)
 
-timedatectl set-ntp true
-
 # Add a build user
-useradd -Um mm-arch-build
+useradd -Um $BUILD_USER
 
 # Prepare the meta packages
 cd /tmp/arch-bootstrap/pkg/mm-arch
-chown -R mm-arch-build:mm-arch-build .
-su mm-arch-build -c "makepkg -s"
+chown -R $BUILD_USER:$BUILD_USER .
+su $BUILD_USER -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
 mv ./*.pkg.tar.zst /tmp/local-repo
 
 # Perepare the paru packages
 cd /tmp/paru
-chown -R mm-arch-build:mm-arch-build .
-su mm-arch-build -c "rustup default stable"
-su mm-arch-build -c "makepkg -s"
+chown -R $BUILD_USER:$BUILD_USER .
+su $BUILD_USER -c "rustup default stable"
+su $BUILD_USER -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
 mv ./*.pkg.tar.zst /tmp/local-repo
 
@@ -98,7 +96,7 @@ pacman -Sy
 pacstrap /mnt "${chosen_meta_pkg}" paru
 
 # Configure the system
-genfstab -U /mnt >> /mnt/etc/fstab
+genfstab -L /mnt >> /mnt/etc/fstab
 arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
 arch-chroot /mnt hwclock --systohc
 arch-chroot /mnt sed -i 's/#\(en_US\.UTF-8\)/\1/' /etc/locale.gen
@@ -108,6 +106,7 @@ arch-chroot /mnt echo "KEYMAP=pl" > /etc/vconsole.conf
 arch-chroot /mnt echo "${hostname}" > /mnt/etc/hostname
 arch-chroot /mnt useradd -mU -s /usr/bin/fish -G wheel "${username}"
 arch-chroot /mnt chsh -s /usr/bin/fish
+ln -sf ../run/systemd/resolve/stub-resolv.conf /mnt/etc/resolv.conf
 echo "${username}:${password}" | chpasswd --root /mnt
 echo "root:${password}" | chpasswd --root /mnt
 
@@ -140,11 +139,13 @@ arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-networkd.service /etc/sy
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
 
+mkdir -p /mnt/etc/systemd/system/sysinit.target.wants
+arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-timesyncd.service /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
+
 # Cleanup
 rm -rf /tmp/arch-bootstrap
 rm -rf /tmp/paru
-userdel -r mm-arch-build
-umount /mnt/boot /mnt
+userdel -r $BUILD_USER
 swapoff "${swap_part}"
 
 echo "Installation complete. Reboot without the installation media."

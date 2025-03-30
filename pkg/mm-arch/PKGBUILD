@@ -8,6 +8,7 @@ url="https://github.com/michal-miko/arch-bootstrap"
 license=('MIT')
 
 source=(
+  user-setup.sh
   skel-tealdeer-config.toml
   sshd_config.d-80-mm-arch.conf
   systemd-network-20-wired-dhcp.network
@@ -17,6 +18,7 @@ source=(
 )
 
 md5sums=(
+  'a0d3e83b37d6860c0d566c25d11bce07'
   'd9506ba4deb4d2c1cc95a3fb9ecb7f66'
   '8d27da6c8ea6dea329f1feb0b3d1fc06'
   'c328c385c7f0ef975162d83ca5652ef7'
@@ -65,6 +67,7 @@ package_mm-arch-base() {
     luarocks neovim python-pynvim ripgrep yarn
   )
 
+  install -Dm 755 user-setup.sh "$pkgdir"/usr/bin/mm-arch-user-setup
   install -Dm 644 skel-tealdeer-config.toml "$pkgdir"/etc/skel/.config/tealdeer/config.toml
   install -Dm 644 sshd_config.d-80-mm-arch.conf "$pkgdir"/etc/ssh/sshd_config.d/80-mm-arch.conf
   install -Dm 644 systemd-network-20-wired-dhcp.network "$pkgdir"/etc/systemd/network/20-wired-dhcp.network
