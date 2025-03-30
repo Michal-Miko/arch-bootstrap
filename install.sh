@@ -5,6 +5,8 @@ set -uo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 mount -o remount,size=4G /run/archiso/cowspace
+pacman-key --init
+pacman-key --populate
 pacman -Syy base-devel rustup git fzf --noconfirm
 
 git clone -b initial_version https://github.com/michal-miko/arch-bootstrap.git /tmp/arch-bootstrap
@@ -54,15 +56,15 @@ useradd -Um mm-arch-build
 # Prepare the meta packages
 cd /tmp/arch-bootstrap/pkg/mm-arch
 chown -R mm-arch-build:mm-arch-build .
-su build -c "makepkg -s"
+su mm-arch-build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
 mv ./*.pkg.tar.zst /tmp/local-repo
 
 # Perepare the paru packages
 cd /tmp/paru
 chown -R mm-arch-build:mm-arch-build .
-su build -c "rustup default stable"
-su build -c "makepkg -s"
+su mm-arch-build -c "rustup default stable"
+su mm-arch-build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
 mv ./*.pkg.tar.zst /tmp/local-repo
 
