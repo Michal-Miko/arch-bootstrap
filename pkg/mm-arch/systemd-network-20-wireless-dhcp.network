@@ -1,0 +1,8 @@
+[Match]
+Type=wlan
+
+[Link]
+RequiredForOnline=routable
+
+[Network]
+DHCP=yes

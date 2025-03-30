@@ -1,0 +1,12 @@
+post_install() {
+  post_upgrade
+}
+
+post_upgrade() {
+  echo "[mm-arch] Updating pacman.conf"
+  cp /etc/pacman.conf /etc/pacman.conf.orig
+  cp /etc/mm-arch-pacman.conf /etc/pacman.conf
+
+  echo "[mm-arch] Installing neovim node dependencies"
+  yarn global add neovim
+}
