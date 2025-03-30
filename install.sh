@@ -18,7 +18,6 @@ SigLevel = Optional TrustAll
 Server = file:///tmp/local-repo
 EOF
 mkdir -p /tmp/local-repo
-repo-add /tmp/local-repo/tmplocal.db.tar.gz
 
 # Collect configuration input from the user
 read -rp "Hostname: " hostname
@@ -47,18 +46,21 @@ exec 2> >(tee -a stderr.log)
 timedatectl set-ntp true
 
 # Add a build user
-useradd -Um build
+if id "build" &>/dev/null; then
+  userdel -r mm-arch-build
+fi
+useradd -Um mm-arch-build
 
 # Prepare the meta packages
 cd /tmp/arch-bootstrap/pkg/mm-arch
-chown -R build:build .
+chown -R mm-arch-build:mm-arch-build .
 su build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
 mv ./*.pkg.tar.zst /tmp/local-repo
 
 # Perepare the paru packages
 cd /tmp/paru
-chown -R build:build .
+chown -R mm-arch-build:mm-arch-build .
 su build -c "rustup default stable"
 su build -c "makepkg -s"
 chown root:root ./*.pkg.tar.zst
@@ -83,9 +85,9 @@ wipefs "${boot_part}"
 wipefs "${swap_part}"
 wipefs "${root_part}"
 
-mkfs.fat -F32 "${boot_part}"
-mkswap "${swap_part}"
-mkfs.ext4 "${root_part}"
+mkfs.fat -F32 -n ARCH_BOOT "${boot_part}"
+mkswap -L ARCH_SWAP "${swap_part}"
+mkfs.ext4 -L ARCH_ROOT "${root_part}"
 
 # Mounts
 mount "${root_part}" /mnt
@@ -130,14 +132,21 @@ cat <<EOF > /mnt/boot/loader/entries/arch-fallback.conf
 title Arch Linux Fallback
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
-options root=PARTUUID=$(blkid -s PARTUUID -o value "${root_part}") rw
+options root=LABEL=ARCH_ROOT rw
 EOF
 
 # Enable services
-mkdir -pm /mnt/etc/systemd/system/multi-user.target.wants
+mkdir -p /mnt/etc/systemd/system/multi-user.target.wants
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 arch-chroot /mnt ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
 
 # Set the default rust toolchain
 arch-chroot /mnt rustup default stable
+
+# Cleanup
+rm -rf /tmp/arch-bootstrap
+rm -rf /tmp/paru
+userdel -r mm-arch-build
+umount /mnt/boot /mnt
+swapoff "${swap_part}"
