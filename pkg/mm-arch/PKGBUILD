@@ -1,5 +1,5 @@
 pkgbase=mm-arch
-pkgname=('mm-arch-base' 'mm-arch-k8s' 'mm-arch-kde' 'mm-arch-kde-aur')
+pkgname=('mm-arch-base' 'mm-arch-k8s' 'mm-arch-k3s' 'mm-arch-kde' 'mm-arch-kde-aur')
 pkgver=1.0
 pkgrel=1
 pkgdesc="Personal meta-packages for my Arch Linux machines"
@@ -84,6 +84,17 @@ package_mm-arch-k8s() {
   # docker & kubernetes
   depends+=(
     docker docker-compose helm helmfile krew kubectl
+  )
+}
+
+package_mm-arch-k3s() {
+  depends=(
+    mm-arch-k8s
+  )
+
+  # Longhorn requirements
+  depends+=(
+    nfs-utils open-iscsi
   )
 }
 
